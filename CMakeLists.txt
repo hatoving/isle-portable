@@ -1,6 +1,35 @@
 cmake_minimum_required(VERSION 3.25...4.0 FATAL_ERROR)
 
+if (VITA)
+  # highly recommended that you include this block for all projects.
+  if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+    if(DEFINED ENV{VITASDK})
+      set(CMAKE_TOOLCHAIN_FILE "$ENV{VITASDK}/share/vita.toolchain.cmake" CACHE PATH "toolchain file")
+    else()
+      message(FATAL_ERROR "Please define VITASDK to point to your SDK path!")
+    endif()
+  endif()
+endif()
+
 project(isle LANGUAGES CXX C VERSION 0.1)
+
+if (VITA)
+  include("${VITASDK}/share/vita.cmake" REQUIRED)
+
+  ## Configuration options for this app
+  # Display name (under bubble in LiveArea)
+  set(VITA_APP_NAME "LEGO® ISLAND")
+  # Unique ID must be exactly 9 characters. Recommended: XXXXYYYYY where X =
+  # unique string of developer and Y = a unique number for this app
+  set(VITA_TITLEID  "LEGOISLE1")
+  # Optional version string to show in LiveArea's more info screen
+  set(VITA_VERSION  "00.10")
+
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -O3")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+  # Optional. You can specify more param.sfo flags this way.
+  set(VITA_MKSFOEX_FLAGS "${VITA_MKSFOEX_FLAGS} -d ATTRIBUTE2=12")
+endif()
 
 if (EMSCRIPTEN)
   add_compile_options(-pthread)
@@ -35,7 +64,7 @@ option(ISLE_WERROR "Treat warnings as errors" OFF)
 option(ISLE_DEBUG "Enable imgui debug" ON)
 cmake_dependent_option(ISLE_USE_DX5 "Build with internal DirectX 5 SDK" "${NOT_MINGW}" "WIN32;CMAKE_SIZEOF_VOID_P EQUAL 4" OFF)
 cmake_dependent_option(ISLE_MINIWIN "Use miniwin" ON "NOT ISLE_USE_DX5" OFF)
-cmake_dependent_option(ISLE_BUILD_CONFIG "Build CONFIG.EXE application" ON "MSVC OR ISLE_MINIWIN" OFF)
+cmake_dependent_option(ISLE_BUILD_CONFIG "Build CONFIG.EXE application" ON "MSVC OR ISLE_MINIWIN;NOT VITA" OFF)
 cmake_dependent_option(ISLE_COMPILE_SHADERS "Compile shaders" ON "SDL_SHADERCROSS_BIN;TARGET Python3::Interpreter" OFF)
 option(CMAKE_POSITION_INDEPENDENT_CODE "Build with -fPIC" ON)
 option(ENABLE_CLANG_TIDY "Enable clang-tidy")
@@ -53,17 +82,26 @@ message(STATUS "Compile shaders:        ${ISLE_COMPILE_SHADERS}")
 
 add_library(Isle::iniparser INTERFACE IMPORTED)
 
+if(VITA)
+  set(LIBRARY_TYPE "STATIC")
+  set(ISLE_DEBUG OFF)
+  set(CMAKE_POSITION_INDEPENDENT_CODE OFF)
+  list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/modules")
+endif()
+
 if (DOWNLOAD_DEPENDENCIES)
     # FetchContent downloads and configures dependencies
-    message(STATUS "Fetching SDL3 and iniparser. This might take a while...")
     include(FetchContent)
-    FetchContent_Declare(
-        SDL3
-        GIT_REPOSITORY "https://github.com/libsdl-org/SDL.git"
-        GIT_TAG "main"
-        EXCLUDE_FROM_ALL
-    )
-    FetchContent_MakeAvailable(SDL3)
+    message(STATUS "Fetching SDL3 and iniparser. This might take a while...")
+    if (NOT VITA)
+      FetchContent_Declare(
+          SDL3
+          GIT_REPOSITORY "https://github.com/libsdl-org/SDL.git"
+          GIT_TAG "main"
+          EXCLUDE_FROM_ALL
+      )
+      FetchContent_MakeAvailable(SDL3)
+    endif()
 
     FetchContent_Declare(
         iniparser
@@ -153,8 +191,10 @@ target_include_directories(lego1 PUBLIC "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/L
 target_include_directories(lego1 PUBLIC "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/LEGO1/lego/sources>")
 target_include_directories(lego1 PUBLIC "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/LEGO1/lego/legoomni/include>")
 target_include_directories(lego1 PUBLIC "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/LEGO1/lego/legoomni/include/actions>")
-target_link_libraries(lego1 PRIVATE SDL3::SDL3)
-target_link_libraries(lego1 PUBLIC SDL3::Headers)
+if (NOT VITA)
+  target_link_libraries(lego1 PRIVATE SDL3::SDL3)
+  target_link_libraries(lego1 PUBLIC SDL3::Headers)
+endif()
 target_link_libraries(lego1 PRIVATE $<$<BOOL:${ISLE_USE_DX5}>:DirectX5::DirectX5>)
 if(WIN32)
   set_property(TARGET lego1 PROPERTY PREFIX "")
@@ -485,7 +525,11 @@ if (ISLE_BUILD_APP)
   target_link_libraries(isle PRIVATE $<$<BOOL:${ISLE_USE_DX5}>:DirectX5::DirectX5>)
 
   # Link SDL and iniparser
-  target_link_libraries(isle PRIVATE SDL3::SDL3 Isle::iniparser)
+  if (NOT VITA)
+    target_link_libraries(isle PRIVATE SDL3::SDL3 Isle::iniparser)
+  else()
+    target_link_libraries(isle PRIVATE Isle::iniparser)
+  endif()
 
   # Allow unconditional include of miniwin/miniwindevice.h
   target_link_libraries(isle PRIVATE miniwin-headers)
@@ -548,7 +592,11 @@ if (ISLE_BUILD_CONFIG)
     target_link_libraries(config PRIVATE DirectX5::DirectX5)
   endif()
   target_compile_definitions(config PRIVATE DIRECT3D_VERSION=0x500)
-  target_link_libraries(config PRIVATE SDL3::SDL3 Isle::iniparser)
+  if (NOT VITA)
+    target_link_libraries(isle PRIVATE SDL3::SDL3 Isle::iniparser)
+  else()
+    target_link_libraries(isle PRIVATE Isle::iniparser)
+  endif()
   if (NOT ISLE_MINIWIN)
     target_link_libraries(config PRIVATE ddraw dxguid)
   endif()
@@ -611,9 +659,11 @@ endif()
 
 set(install_extra_targets)
 if(DOWNLOAD_DEPENDENCIES)
-  get_property(sdl3_type TARGET SDL3::SDL3 PROPERTY TYPE)
-  if(sdl3_type STREQUAL "SHARED_LIBRARY")
-    list(APPEND install_extra_targets "SDL3-shared")
+  if (NOT VITA)
+    get_property(sdl3_type TARGET SDL3::SDL3 PROPERTY TYPE)
+    if(sdl3_type STREQUAL "SHARED_LIBRARY")
+      list(APPEND install_extra_targets "SDL3-shared")
+    endif()
   endif()
 endif()
 
@@ -645,6 +695,45 @@ endif()
 
 set(CPACK_PACKAGE_DIRECTORY "dist")
 set(CPACK_PACKAGE_FILE_NAME "isle-${PROJECT_VERSION}-${ISLE_PACKAGE_NAME}-${CMAKE_SYSTEM_PROCESSOR}")
+
+if (VITA)
+    target_link_libraries(isle PRIVATE
+      lego1
+      SDL3
+      SceLibKernel_stub
+      pthread
+      SceAudio_stub
+      SceAudioIn_stub
+      SceDisplay_stub 
+      SceTouch_stub
+      SceCamera_stub
+      SceMotion_stub
+      SceGxm_stub
+      SceSysmodule_stub 
+      SceCtrl_stub 
+      SceHid_stub
+      ScePgf_stub 
+      ScePvf_stub
+      SceAppMgr_stub
+      SceCommonDialog_stub 
+      SceIofilemgr_stub 
+      freetype
+      png 
+      jpeg 
+      z 
+      m 
+      c
+  )
+
+  vita_create_self(${PROJECT_NAME}.self isle UNSAFE)
+
+  vita_create_vpk(${PROJECT_NAME}.vpk ${VITA_TITLEID} ${PROJECT_NAME}.self
+    VERSION ${VITA_VERSION}
+    NAME ${VITA_APP_NAME}
+    ${VPK_FILE_ARGS}
+  )
+endif()
+
 if(MSVC)
   set(CPACK_GENERATOR ZIP)
 else()

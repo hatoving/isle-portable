@@ -12,6 +12,8 @@
 #include "mxtimer.h"
 #include "mxutilities.h"
 
+#include <SDL3/SDL.h>
+
 DECOMP_SIZE_ASSERT(MxStreamController, 0x64)
 DECOMP_SIZE_ASSERT(MxNextActionDataStart, 0x14)
 DECOMP_SIZE_ASSERT(MxNextActionDataStartList, 0x0c)
@@ -73,6 +75,8 @@ MxResult MxStreamController::Open(const char* p_filename)
 
 	MakeSourceName(sourceName, p_filename);
 	m_atom = MxAtomId(sourceName, e_lowerCase2);
+	
+	SDL_Log("opening up %s : ", p_filename);
 	return SUCCESS;
 }
 

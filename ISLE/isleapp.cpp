@@ -261,7 +261,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv)
 	SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "0");
 	SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
 
-	if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK)) {
+	if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD)) {
 		char buffer[256];
 		SDL_snprintf(
 			buffer,
@@ -626,6 +626,7 @@ MxU8 IsleApp::MapMouseButtonFlagsToModifier(SDL_MouseButtonFlags p_flags)
 MxResult IsleApp::SetupWindow()
 {
 	if (!LoadConfig()) {
+		SDL_Log("Failed at LoadConfig");
 		return FAILURE;
 	}
 
@@ -657,7 +658,7 @@ MxResult IsleApp::SetupWindow()
 	SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_FULLSCREEN_BOOLEAN, m_fullScreen);
 	SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, WINDOW_TITLE);
 #ifdef MINIWIN
-	SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_OPENGL_BOOLEAN, true);
+	SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_OPENGL_BOOLEAN, false);
 #endif
 
 	window = SDL_CreateWindowWithProperties(props);
@@ -671,6 +672,7 @@ MxResult IsleApp::SetupWindow()
 	SDL_DestroyProperties(props);
 
 	if (!m_windowHandle) {
+		SDL_Log("failed to create window: %s", SDL_GetError());
 		return FAILURE;
 	}
 
@@ -692,12 +694,14 @@ MxResult IsleApp::SetupWindow()
 	}
 
 	if (!SetupLegoOmni()) {
+		SDL_Log("Failed at SetupLegoOmni");
 		return FAILURE;
 	}
 
 	GameState()->SetSavePath(m_savePath);
 
 	if (VerifyFilesystem() != SUCCESS) {
+		SDL_Log("Failed at VerifyFilesystem");
 		return FAILURE;
 	}
 
@@ -744,6 +748,7 @@ MxResult IsleApp::SetupWindow()
 
 	IsleDebug_Init();
 
+	SDL_Log("FUCK YEAH!!!");
 	return SUCCESS;
 }
 

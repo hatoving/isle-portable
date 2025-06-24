@@ -24,7 +24,11 @@
 MxString g_hdPath = "";
 
 // GLOBAL: LEGO1 0x101019b8
-MxString g_cdPath = "E:";
+#ifdef __vita__
+	MxString g_cdPath = "ux0:data/isledecomp/cd";
+#else
+	MxString g_cdPath = "E:";
+#endif
 
 // GLOBAL: LEGO1 0x10101db8
 MxBool g_use3dSound = FALSE;
