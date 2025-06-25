@@ -7,6 +7,9 @@
 #ifdef _WIN32
 #include "d3drmrenderer_directx9.h"
 #endif
+#ifdef __vita__
+#include "d3drmrenderer_vitagl.h"
+#endif
 #include "d3drmrenderer_sdl3gpu.h"
 #include "d3drmrenderer_software.h"
 #include "ddpalette_impl.h"
@@ -222,18 +225,17 @@ void EnumDevice(LPD3DENUMDEVICESCALLBACK cb, void* ctx, Direct3DRMRenderer* devi
 
 HRESULT DirectDrawImpl::EnumDevices(LPD3DENUMDEVICESCALLBACK cb, void* ctx)
 {
-	Direct3DRMSDL3GPU_EnumDevice(cb, ctx);
+Direct3DRMSDL3GPU_EnumDevice(cb, ctx);
 #ifdef USE_OPENGLES2
-	OpenGLES2Renderer_EnumDevice(cb, ctx);
+OpenGLES2Renderer_EnumDevice(cb, ctx);
 #endif
 #ifdef USE_OPENGL1
-	OpenGL1Renderer_EnumDevice(cb, ctx);
+OpenGL1Renderer_EnumDevice(cb, ctx);
 #endif
 #ifdef _WIN32
-	DirectX9Renderer_EnumDevice(cb, ctx);
+DirectX9Renderer_EnumDevice(cb, ctx);
 #endif
-	Direct3DRMSoftware_EnumDevice(cb, ctx);
-
+Direct3DRMSoftware_EnumDevice(cb, ctx);
 	return S_OK;
 }
 
@@ -329,6 +331,9 @@ HRESULT DirectDrawImpl::CreateDevice(
 	if (SDL_memcmp(&guid, &SDL3_GPU_GUID, sizeof(GUID)) == 0) {
 		renderer = Direct3DRMSDL3GPURenderer::Create(DDSDesc.dwWidth, DDSDesc.dwHeight);
 	}
+	else if (SDL_memcmp(&guid, &SOFTWARE_GUID, sizeof(GUID)) == 0) {
+		renderer = new Direct3DRMSoftwareRenderer(DDSDesc.dwWidth, DDSDesc.dwHeight);
+	}
 #ifdef USE_OPENGLES2
 	else if (SDL_memcmp(&guid, &OpenGLES2_GUID, sizeof(GUID)) == 0) {
 		renderer = OpenGLES2Renderer::Create(DDSDesc.dwWidth, DDSDesc.dwHeight);
@@ -344,9 +349,6 @@ HRESULT DirectDrawImpl::CreateDevice(
 		renderer = DirectX9Renderer::Create(DDSDesc.dwWidth, DDSDesc.dwHeight);
 	}
 #endif
-	else if (SDL_memcmp(&guid, &SOFTWARE_GUID, sizeof(GUID)) == 0) {
-		renderer = new Direct3DRMSoftwareRenderer(DDSDesc.dwWidth, DDSDesc.dwHeight);
-	}
 	else {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Device GUID not recognized");
 		return E_NOINTERFACE;

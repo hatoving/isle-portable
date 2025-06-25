@@ -16,6 +16,9 @@
 #ifdef _WIN32
 #include "d3drmrenderer_directx9.h"
 #endif
+#ifdef __vita__
+#include "d3drmrenderer_vitagl.h"
+#endif
 #include "d3drmrenderer_sdl3gpu.h"
 #include "d3drmrenderer_software.h"
 #include "d3drmtexture_impl.h"

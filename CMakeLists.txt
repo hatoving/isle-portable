@@ -73,6 +73,14 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}" CACHE PATH "Directory w
 set(ISLE_EMSCRIPTEN_HOST "" CACHE STRING "Host URL for Emscripten streaming (e.g., https://test.com)")
 cmake_dependent_option(BUILD_SHARED_LIBS "Build lego1 as a shared library" ON "NOT EMSCRIPTEN" OFF)
 
+if(VITA)
+  set(LIBRARY_TYPE "STATIC")
+  set(ISLE_DEBUG OFF)
+  set(ISLE_MINIWIN ON)
+  set(CMAKE_POSITION_INDEPENDENT_CODE OFF)
+  list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/modules")
+endif()
+
 message(STATUS "Isle app:               ${ISLE_BUILD_APP}")
 message(STATUS "Config app:             ${ISLE_BUILD_CONFIG}")
 message(STATUS "Internal DirectX5 SDK:  ${ISLE_USE_DX5}")
@@ -81,13 +89,6 @@ message(STATUS "Isle debugging:         ${ISLE_DEBUG}")
 message(STATUS "Compile shaders:        ${ISLE_COMPILE_SHADERS}")
 
 add_library(Isle::iniparser INTERFACE IMPORTED)
-
-if(VITA)
-  set(LIBRARY_TYPE "STATIC")
-  set(ISLE_DEBUG OFF)
-  set(CMAKE_POSITION_INDEPENDENT_CODE OFF)
-  list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/modules")
-endif()
 
 if (DOWNLOAD_DEPENDENCIES)
     # FetchContent downloads and configures dependencies
@@ -506,11 +507,11 @@ if (NOT ISLE_MINIWIN)
 endif()
 
 if (ISLE_BUILD_APP)
-  add_executable(isle WIN32
-    ISLE/res/isle.rc
-    ISLE/isleapp.cpp
-    ISLE/islefiles.cpp
-  )
+    add_executable(isle WIN32
+      ISLE/res/isle.rc
+      ISLE/isleapp.cpp
+      ISLE/islefiles.cpp
+    )
   list(APPEND isle_targets isle)
   if (WIN32)
     add_custom_command(TARGET isle POST_BUILD
@@ -698,13 +699,23 @@ set(CPACK_PACKAGE_FILE_NAME "isle-${PROJECT_VERSION}-${ISLE_PACKAGE_NAME}-${CMAK
 
 if (VITA)
     target_link_libraries(isle PRIVATE
+      -Wl,-q
       lego1
       SDL3
+      vitaGL
+      vitashark
+      SceShaccCgExt
+      taihen_stub
+      kubridge_stub
+      c
+      SceIme_stub
       SceLibKernel_stub
+      SceShaccCg_stub
       pthread
       SceAudio_stub
       SceAudioIn_stub
-      SceDisplay_stub 
+      SceDisplay_stub
+      SceKernelDmacMgr_stub
       SceTouch_stub
       SceCamera_stub
       SceMotion_stub
@@ -712,7 +723,8 @@ if (VITA)
       SceSysmodule_stub 
       SceCtrl_stub 
       SceHid_stub
-      ScePgf_stub 
+      ScePgf_stub
+      mathneon 
       ScePvf_stub
       SceAppMgr_stub
       SceCommonDialog_stub 
@@ -722,7 +734,6 @@ if (VITA)
       jpeg 
       z 
       m 
-      c
   )
 
   vita_create_self(${PROJECT_NAME}.self isle UNSAFE)
@@ -730,7 +741,6 @@ if (VITA)
   vita_create_vpk(${PROJECT_NAME}.vpk ${VITA_TITLEID} ${PROJECT_NAME}.self
     VERSION ${VITA_VERSION}
     NAME ${VITA_APP_NAME}
-    ${VPK_FILE_ARGS}
   )
 endif()
 
